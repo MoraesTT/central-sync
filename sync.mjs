@@ -4,8 +4,10 @@ import fs from 'node:fs';
 const API='https://api.pluggy.ai';
 const ITEMS=(process.env.PLUGGY_ITEM_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
 const DIAS=+(process.env.DIAS||45), DIAS_PARC=150;
-if(!process.env.PLUGGY_CLIENT_ID||!process.env.PLUGGY_CLIENT_SECRET||!ITEMS.length){ console.error('Faltam segredos'); process.exit(1); }
-const j=async(r)=>{ if(!r.ok) throw new Error(r.status+' '+(await r.text()).slice(0,200)); return r.json(); };
+const falha=(m)=>{ console.log('::error::'+String(m).replace(/[\r\n]+/g,' ').slice(0,400)); process.exit(1); };
+process.on('unhandledRejection',e=>falha(e&&e.message||e));
+if(!process.env.PLUGGY_CLIENT_ID||!process.env.PLUGGY_CLIENT_SECRET||!ITEMS.length) falha('Faltam segredos: '+['PLUGGY_CLIENT_ID','PLUGGY_CLIENT_SECRET'].filter(k=>!process.env[k]).join(', '));
+const j=async(r)=>{ if(!r.ok) throw new Error(r.url.replace(/\?.*/,'')+' -> '+r.status+' '+(await r.text()).slice(0,200)); return r.json(); };
 const {apiKey}=await j(await fetch(API+'/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({clientId:process.env.PLUGGY_CLIENT_ID,clientSecret:process.env.PLUGGY_CLIENT_SECRET})}));
 const get=async(p)=>j(await fetch(API+p,{headers:{'X-API-KEY':apiKey}}));
 const dia=(n)=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
@@ -40,4 +42,5 @@ const proximosMeses=Object.keys(meses).sort().slice(0,9).map(m=>({month:m,commit
 const doc={at:new Date().toISOString().slice(0,19)+'+00:00',fonte:'github',accounts:{contas,cartoes},tx,outlook:{totalComprometido:Math.round(proximosMeses.reduce((s,m)=>s+m.committed,0)*100)/100,proximosMeses},itens:itensStatus};
 const s=JSON.stringify(doc); if(s.length>240000) throw new Error('GRANDE DEMAIS');
 fs.mkdirSync('out',{recursive:true}); fs.writeFileSync('out/inbox.json',s);
-const ds=tx.map(t=>t.date).sort(); console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
+const ds=tx.map(t=>t.date).sort(); console.log('::notice::OK '+tx.length+' lançamentos '+ds[0]+' a '+ds.at(-1)+' '+JSON.stringify(itensStatus));
+console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
