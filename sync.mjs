@@ -48,7 +48,9 @@ const s=JSON.stringify(doc); if(s.length>240000) throw new Error('GRANDE DEMAIS'
 // criptografa: AES-256-GCM com chave aleatória, chave embrulhada com a chave pública RSA do repositório
 const k=crypto.randomBytes(32), iv=crypto.randomBytes(12); const c=crypto.createCipheriv('aes-256-gcm',k,iv); const data=Buffer.concat([c.update(s,'utf8'),c.final()]);
 const pub=fs.readFileSync('chave_publica.pem','utf8'); const kw=crypto.publicEncrypt({key:pub,padding:crypto.constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},k);
-fs.mkdirSync('out',{recursive:true}); fs.writeFileSync('out/inbox.enc.json',JSON.stringify({v:1,at:doc.at,n:tx.length,k:kw.toString('base64'),iv:iv.toString('base64'),tag:c.getAuthTag().toString('base64'),data:data.toString('base64')}));
+fs.mkdirSync('out',{recursive:true}); const NOMES={'e5450539-6faa-46a5-9b60-686932e79dbc':'Inter','b71b33b3-83e7-47ec-845d-8c95cc75a0cc':'Nubank','2ced0015-4d81-4dda-9484-352c4537fe87':'PicPay','9443754b-3d7b-4a04-a595-823af681308e':'Itaú'};
+const st=itensStatus.map(i=>({banco:NOMES[i.itemId]||'?',status:i.status||'ERRO',atualizado:i.atualizado||null}));
+fs.writeFileSync('out/inbox.enc.json',JSON.stringify({v:1,at:doc.at,n:tx.length,st,k:kw.toString('base64'),iv:iv.toString('base64'),tag:c.getAuthTag().toString('base64'),data:data.toString('base64')}));
 const ds=tx.map(t=>t.date).sort(); console.log('::notice::OK '+tx.length+' lançamentos '+ds[0]+' a '+ds.at(-1)+' '+JSON.stringify(itensStatus));
 console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
 }
