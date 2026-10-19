@@ -7,6 +7,7 @@ const DIAS=+(process.env.DIAS||45), DIAS_PARC=150;
 const falha=(m)=>{ console.log('::error::'+String(m).replace(/[\r\n]+/g,' ').slice(0,400)); process.exit(1); };
 process.on('unhandledRejection',e=>falha(e&&e.message||e));
 if(!process.env.PLUGGY_CLIENT_ID||!process.env.PLUGGY_CLIENT_SECRET||!ITEMS.length) falha('Faltam segredos: '+['PLUGGY_CLIENT_ID','PLUGGY_CLIENT_SECRET'].filter(k=>!process.env[k]).join(', '));
+async function main(){
 const j=async(r)=>{ if(!r.ok) throw new Error(r.url.replace(/\?.*/,'')+' -> '+r.status+' '+(await r.text()).slice(0,200)); return r.json(); };
 const {apiKey}=await j(await fetch(API+'/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({clientId:process.env.PLUGGY_CLIENT_ID,clientSecret:process.env.PLUGGY_CLIENT_SECRET})}));
 const get=async(p)=>j(await fetch(API+p,{headers:{'X-API-KEY':apiKey}}));
@@ -44,3 +45,5 @@ const s=JSON.stringify(doc); if(s.length>240000) throw new Error('GRANDE DEMAIS'
 fs.mkdirSync('out',{recursive:true}); fs.writeFileSync('out/inbox.json',s);
 const ds=tx.map(t=>t.date).sort(); console.log('::notice::OK '+tx.length+' lançamentos '+ds[0]+' a '+ds.at(-1)+' '+JSON.stringify(itensStatus));
 console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
+}
+main().catch(e=>falha(e&&e.message||e));
