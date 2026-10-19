@@ -25,7 +25,8 @@ for(const itemId of ITEMS){
       const r=await get(`/v2/transactions?accountId=${a.id}&dateFrom=${de}`+(after?`&after=${encodeURIComponent(after)}`:''));
       for(const t of r.results||[]){
         const v=Math.abs(Number(t.amount)); const amount=t.type==='CREDIT'?v:-v;
-        const o={id:t.id,accountId:a.id,date:new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(t.date)),description:(t.descriptionRaw&&t.descriptionRaw.toUpperCase()===String(t.description).toUpperCase()?t.descriptionRaw:t.description),amount,category:t.category||undefined,merchantName:t.merchant?.name||undefined,status:t.status,createdAt:t.createdAt?String(t.createdAt).slice(0,16):undefined};
+        let desc=(t.descriptionRaw&&t.descriptionRaw.toUpperCase()===String(t.description).toUpperCase()?t.descriptionRaw:t.description); if(desc===String(desc).toLowerCase()) desc=String(desc).toUpperCase();
+        const o={id:t.id,accountId:a.id,date:new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(t.date)),description:desc,amount,category:t.category||undefined,merchantName:t.merchant?.name||undefined,status:t.status,createdAt:t.createdAt?String(t.createdAt).slice(0,16):undefined};
         const cm=t.creditCardMetadata; if(cm&&cm.totalInstallments>1){ o.installmentNumber=cm.installmentNumber; o.installmentTotal=cm.totalInstallments; }
         for(const k of Object.keys(o)) if(o[k]===undefined) delete o[k];
         if(o.date<de) continue; if(o.date>=dia(DIAS)) tx.push(o);
