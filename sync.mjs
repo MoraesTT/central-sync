@@ -1,6 +1,7 @@
 // Busca contas, lançamentos e parcelas no Pluggy e gera inbox.json no formato da Central do Moraes.
 // Credenciais vêm dos segredos do repositório (PLUGGY_CLIENT_ID, PLUGGY_CLIENT_SECRET). Nada é gravado no repositório.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 const API='https://api.pluggy.ai';
 const ITEMS=(process.env.PLUGGY_ITEM_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
 const DIAS=+(process.env.DIAS||45), DIAS_PARC=150;
@@ -43,7 +44,10 @@ for(const t of ult.values()) for(let n=t.installmentNumber+1;n<=t.installmentTot
 const proximosMeses=Object.keys(meses).sort().slice(0,9).map(m=>({month:m,committed:Math.round(meses[m].reduce((s,i)=>s+i.amount,0)*100)/100,items:meses[m]}));
 const doc={at:new Date().toISOString().slice(0,19)+'+00:00',fonte:'github',accounts:{contas,cartoes},tx,outlook:{totalComprometido:Math.round(proximosMeses.reduce((s,m)=>s+m.committed,0)*100)/100,proximosMeses},itens:itensStatus};
 const s=JSON.stringify(doc); if(s.length>240000) throw new Error('GRANDE DEMAIS');
-fs.mkdirSync('out',{recursive:true}); fs.writeFileSync('out/inbox.json',s);
+// criptografa: AES-256-GCM com chave aleatória, chave embrulhada com a chave pública RSA do repositório
+const k=crypto.randomBytes(32), iv=crypto.randomBytes(12); const c=crypto.createCipheriv('aes-256-gcm',k,iv); const data=Buffer.concat([c.update(s,'utf8'),c.final()]);
+const pub=fs.readFileSync('chave_publica.pem','utf8'); const kw=crypto.publicEncrypt({key:pub,padding:crypto.constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},k);
+fs.mkdirSync('out',{recursive:true}); fs.writeFileSync('out/inbox.enc.json',JSON.stringify({v:1,at:doc.at,n:tx.length,k:kw.toString('base64'),iv:iv.toString('base64'),tag:c.getAuthTag().toString('base64'),data:data.toString('base64')}));
 const ds=tx.map(t=>t.date).sort(); console.log('::notice::OK '+tx.length+' lançamentos '+ds[0]+' a '+ds.at(-1)+' '+JSON.stringify(itensStatus));
 console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
 }

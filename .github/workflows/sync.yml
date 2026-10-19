@@ -4,7 +4,7 @@ on:
     - cron: '17 9,15,21 * * *'   # 6h17, 12h17 e 18h17 de Brasília
   workflow_dispatch: {}
 permissions:
-  contents: read
+  contents: write
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -18,5 +18,11 @@ jobs:
           PLUGGY_CLIENT_ID: ${{ secrets.PLUGGY_CLIENT_ID }}
           PLUGGY_CLIENT_SECRET: ${{ secrets.PLUGGY_CLIENT_SECRET }}
           PLUGGY_ITEM_IDS: e5450539-6faa-46a5-9b60-686932e79dbc,b71b33b3-83e7-47ec-845d-8c95cc75a0cc,2ced0015-4d81-4dda-9484-352c4537fe87
-      - uses: actions/upload-artifact@v4
-        with: { name: inbox, path: out/inbox.json, retention-days: 3 }
+      - name: Publica no ramo dados (sem histórico)
+        run: |
+          cd out
+          git init -q -b dados
+          git config user.name central-sync; git config user.email central-sync@users.noreply.github.com
+          git add inbox.enc.json
+          git commit -qm "dados $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" dados
