@@ -25,7 +25,7 @@ for(const itemId of ITEMS){
       const r=await get(`/v2/transactions?accountId=${a.id}&dateFrom=${de}`+(after?`&after=${encodeURIComponent(after)}`:''));
       for(const t of r.results||[]){
         const v=Math.abs(Number(t.amount)); const amount=t.type==='CREDIT'?v:-v;
-        let desc=(t.descriptionRaw&&t.descriptionRaw.toUpperCase()===String(t.description).toUpperCase()?t.descriptionRaw:t.description); if(desc===String(desc).toLowerCase()) desc=String(desc).toUpperCase();
+        let desc=(t.descriptionRaw&&t.descriptionRaw.toUpperCase()===String(t.description).toUpperCase()?t.descriptionRaw:t.description);
         const o={id:t.id,accountId:a.id,date:new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(t.date)),description:desc,amount,category:t.category||undefined,merchantName:t.merchant?.name||undefined,status:t.status,createdAt:t.createdAt?String(t.createdAt).slice(0,16):undefined};
         const cm=t.creditCardMetadata; if(cm&&cm.totalInstallments>1){ o.installmentNumber=cm.installmentNumber; o.installmentTotal=cm.totalInstallments; }
         for(const k of Object.keys(o)) if(o[k]===undefined) delete o[k];
@@ -39,7 +39,7 @@ for(const itemId of ITEMS){
 // parcelas futuras: para cada compra, a ocorrência mais recente projeta as próximas, uma por mês
 const addMes=(m,k)=>{ const [y,mm]=m.split('-').map(Number); const d=new Date(Date.UTC(y,mm-1+k,1)); return d.toISOString().slice(0,7); };
 const ult=new Map();
-for(const t of txParc){ if(t.amount>=0) continue; const k=t.accountId+'|'+String(t.description).toLowerCase().replace(/\s+/g,' ').trim()+'|'+t.installmentTotal+'|'+addMes(t.date.slice(0,7),-(t.installmentNumber-1)); const e=ult.get(k); if(!e||t.installmentNumber>e.installmentNumber) ult.set(k,t); }
+for(const t of txParc){ if(t.amount>=0) continue; const k=t.accountId+'|'+String(t.description).toLowerCase().replace(/\s+/g,' ').trim()+'|'+t.installmentTotal; const e=ult.get(k); if(!e||t.date>e.date||(t.date===e.date&&t.installmentNumber>e.installmentNumber)) ult.set(k,t); }
 const meses={}; const hojeM=new Date().toISOString().slice(0,7);
 for(const t of ult.values()) for(let n=t.installmentNumber+1;n<=t.installmentTotal;n++){ const m=addMes(t.date.slice(0,7),n-t.installmentNumber); if(m<=hojeM) continue; (meses[m]||=[]).push({amount:Math.abs(t.amount),description:t.description,installment:n,total:t.installmentTotal}); }
 const proximosMeses=Object.keys(meses).sort().slice(0,9).map(m=>({month:m,committed:Math.round(meses[m].reduce((s,i)=>s+i.amount,0)*100)/100,items:meses[m]}));
