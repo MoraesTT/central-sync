@@ -1,4 +1,4 @@
-name: Sync Pluggy
+name: Sync Pluggy + Saúde
 on:
   schedule:
     - cron: '47 9,15,23 * * *'   # 6h47, 12h47 e 20h47 de Brasília
@@ -17,6 +17,9 @@ jobs:
         env:
           PLUGGY_CLIENT_ID: ${{ secrets.PLUGGY_CLIENT_ID }}
           PLUGGY_CLIENT_SECRET: ${{ secrets.PLUGGY_CLIENT_SECRET }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
           PLUGGY_ITEM_IDS: e5450539-6faa-46a5-9b60-686932e79dbc,b71b33b3-83e7-47ec-845d-8c95cc75a0cc,2ced0015-4d81-4dda-9484-352c4537fe87,9443754b-3d7b-4a04-a595-823af681308e
       - name: Publica no ramo dados (sem histórico)
         run: |
