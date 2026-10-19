@@ -20,16 +20,17 @@ for(const itemId of ITEMS){
     if(a.type==='CREDIT') cartoes.push({id:a.id,itemId,name:a.name,number:a.number,balance:a.balance,creditLimit:a.creditData?.creditLimit,availableCreditLimit:a.creditData?.availableCreditLimit});
     else contas.push({id:a.id,itemId,name:a.name,balance:a.balance});
     const de=a.type==='CREDIT'?dia(DIAS_PARC):dia(DIAS);
-    for(let page=1,tot=1;page<=tot;page++){
-      const r=await get(`/transactions?accountId=${a.id}&from=${de}&pageSize=500&page=${page}`); tot=r.totalPages||1;
+    for(let after=null,guard=0;guard<50;guard++){
+      const r=await get(`/v2/transactions?accountId=${a.id}&dateFrom=${de}`+(after?`&after=${encodeURIComponent(after)}`:''));
       for(const t of r.results||[]){
         const v=Math.abs(Number(t.amount)); const amount=t.type==='CREDIT'?v:-v;
         const o={id:t.id,accountId:a.id,date:String(t.date).slice(0,10),description:t.description,amount,category:t.category||undefined,merchantName:t.merchant?.name||t.merchant?.businessName||undefined,status:t.status,createdAt:t.createdAt?String(t.createdAt).slice(0,16):undefined};
         const cm=t.creditCardMetadata; if(cm&&cm.totalInstallments>1){ o.installmentNumber=cm.installmentNumber; o.installmentTotal=cm.totalInstallments; }
         for(const k of Object.keys(o)) if(o[k]===undefined) delete o[k];
-        if(o.date>=dia(DIAS)) tx.push(o);
+        if(o.date<de) continue; if(o.date>=dia(DIAS)) tx.push(o);
         if(a.type==='CREDIT'&&o.installmentTotal) txParc.push(o);
       }
+      after=r.next?new URL(r.next,API).searchParams.get('after'):null; if(!after) break;
     }
   }
 }
