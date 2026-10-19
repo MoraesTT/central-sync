@@ -29,7 +29,7 @@ for(const itemId of ITEMS){
         const o={id:t.id,accountId:a.id,date:new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(t.date)),description:desc,amount,category:t.category||undefined,merchantName:t.merchant?.name||undefined,status:t.status,createdAt:t.createdAt?String(t.createdAt).slice(0,16):undefined};
         const cm=t.creditCardMetadata; if(cm&&cm.totalInstallments>1){ o.installmentNumber=cm.installmentNumber; o.installmentTotal=cm.totalInstallments; }
         for(const k of Object.keys(o)) if(o[k]===undefined) delete o[k];
-        if(o.date<de) continue; if(o.date>=dia(DIAS)) tx.push(o);
+        if(o.date<de) continue; const amanha=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now()+864e5)); if(o.date>=dia(DIAS)&&o.date<amanha) tx.push(o); // lançamentos agendados (data futura) ficam fora
         if(a.type==='CREDIT'&&o.installmentTotal) txParc.push(o);
       }
       after=r.next?new URL(r.next,API).searchParams.get('after'):null; if(!after) break;
