@@ -60,6 +60,7 @@ fs.writeFileSync('out/inbox.enc.json',JSON.stringify({v:1,at:doc.at,n:tx.length,
 const ds=tx.map(t=>t.date).sort(); console.log('::notice::OK '+tx.length+' lançamentos '+ds[0]+' a '+ds.at(-1)+' '+JSON.stringify(itensStatus));
 console.log('::notice::Investimentos: '+investimentos.filter(x=>!x.erro).length+' posições, '+investimentos.filter(x=>x.erro).length+' erros');
 console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
+console.log('::notice::Saúde campos '+JSON.stringify(doc.saude.campos||{}));
 console.log('::notice::Saúde '+JSON.stringify(sau)+((doc.saude.erros||[]).length?' '+doc.saude.erros.join(' | ').slice(0,600):''));
 }
 main().catch(e=>falha(e&&e.message||e));

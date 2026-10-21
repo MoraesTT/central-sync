@@ -53,6 +53,16 @@ export async function buscarSaude({dias=40}={}){
   const amostra=async(tipo,snake,chave,campo,ehDiario)=>{ const f=ehDiario?`${snake}.date >= "${ini}"`:`${snake}.sample_time.civil_time >= "${ini}T00:00:00"`;
     for(const p of await listar(tipo,f)){ const x=p[chave]||{}; const d=ehDiario?ymd(x.date):(x.sampleTime&&x.sampleTime.physicalTime?diaSP(new Date(x.sampleTime.physicalTime)):null); if(!d) continue;
       for(const [k,v] of Object.entries(x)){ if(k==='date'||k==='sampleTime'||typeof v==='object') continue; let n=num(v); if(n==null) continue; if(/grams/i.test(k)) n=Math.round(n/10)/100; dia(d)[campo]=n; break; } } };
+  // respiração, SpO2 e temperatura da pele durante o sono: guarda todos os campos numéricos (achatados um nível), com prefixo
+  const campos={};
+  const diarioTodos=async(tipo,snake,chave,pre)=>{ const nomes=new Set(); let n=0;
+    for(const p of await listar(tipo,`${snake}.date >= "${ini}"`)){ const x=p[chave]||{}; const d=ymd(x.date); if(!d) continue; n++;
+      const put=(k,v)=>{ const z=num(v); if(z!=null){ dia(d)[pre+'_'+k]=z; nomes.add(k); } };
+      for(const [k,v] of Object.entries(x)){ if(k==='date') continue; if(v&&typeof v==='object'&&!Array.isArray(v)){ for(const [k2,v2] of Object.entries(v)) put(k+'.'+k2,v2); } else put(k,v); } }
+    campos[pre]={n,campos:[...nomes]}; };
+  await diarioTodos('daily-respiratory-rate','daily_respiratory_rate','dailyRespiratoryRate','resp');
+  await diarioTodos('daily-oxygen-saturation','daily_oxygen_saturation','dailyOxygenSaturation','spo2');
+  await diarioTodos('daily-sleep-temperature-derivations','daily_sleep_temperature_derivations','dailySleepTemperatureDerivations','temp');
   await amostra('daily-vo2-max','daily_vo2_max','dailyVo2Max','vo2',true);
   await amostra('weight','weight','weight','peso',false);
   await amostra('body-fat','body_fat','bodyFat','gordura',false);
@@ -66,5 +76,5 @@ export async function buscarSaude({dias=40}={}){
   }
   treinos.sort((x,y)=>(x.d+x.hora).localeCompare(y.d+y.hora));
   const nDias=Object.keys(D).length;
-  return {ok:nDias>0||treinos.length>0,at:new Date().toISOString(),de:ini,dias:D,treinos,erros};
+  return {ok:nDias>0||treinos.length>0,at:new Date().toISOString(),de:ini,dias:D,treinos,erros,campos};
 }
