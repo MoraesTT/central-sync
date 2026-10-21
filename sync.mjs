@@ -14,9 +14,11 @@ const j=async(r)=>{ if(!r.ok) throw new Error(r.url.replace(/\?.*/,'')+' -> '+r.
 const {apiKey}=await j(await fetch(API+'/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({clientId:process.env.PLUGGY_CLIENT_ID,clientSecret:process.env.PLUGGY_CLIENT_SECRET})}));
 const get=async(p)=>j(await fetch(API+p,{headers:{'X-API-KEY':apiKey}}));
 const dia=(n)=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
-const contas=[],cartoes=[],tx=[],txParc=[],itensStatus=[];
+const contas=[],cartoes=[],tx=[],txParc=[],itensStatus=[],investimentos=[];
 for(const itemId of ITEMS){
   try{ const it=await get('/items/'+itemId); itensStatus.push({itemId,status:it.status,atualizado:it.lastUpdatedAt||it.updatedAt}); }catch(e){ itensStatus.push({itemId,erro:String(e.message)}); }
+  try{ const inv=(await get('/investments?itemId='+itemId+'&pageSize=200')).results||[];
+    for(const x of inv) investimentos.push({itemId,nome:x.name,codigo:x.code||undefined,tipo:x.type,subtipo:x.subtype||undefined,saldo:x.balance,valorAplicado:x.amountOriginal??undefined,quantidade:x.quantity??undefined,preco:x.value??undefined,data:x.date?String(x.date).slice(0,10):undefined,status:x.status||undefined}); }catch(e){ investimentos.push({itemId,erro:String(e.message).slice(0,120)}); }
   const acc=(await get('/accounts?itemId='+itemId)).results||[];
   for(const a of acc){
     if(a.type==='CREDIT') cartoes.push({id:a.id,itemId,name:a.name,number:a.number,balance:a.balance,creditLimit:a.creditData?.creditLimit,availableCreditLimit:a.creditData?.availableCreditLimit});
@@ -44,18 +46,19 @@ for(const t of txParc){ if(t.amount>=0) continue; const k=t.accountId+'|'+String
 const meses={}; const hojeM=new Date().toISOString().slice(0,7);
 for(const t of ult.values()) for(let n=t.installmentNumber+1;n<=t.installmentTotal;n++){ const m=addMes(t.date.slice(0,7),n-t.installmentNumber); if(m<=hojeM) continue; (meses[m]||=[]).push({amount:Math.abs(t.amount),description:t.description,installment:n,total:t.installmentTotal}); }
 const proximosMeses=Object.keys(meses).sort().slice(0,9).map(m=>({month:m,committed:Math.round(meses[m].reduce((s,i)=>s+i.amount,0)*100)/100,items:meses[m]}));
-const doc={at:new Date().toISOString().slice(0,19)+'+00:00',fonte:'github',accounts:{contas,cartoes},tx,outlook:{totalComprometido:Math.round(proximosMeses.reduce((s,m)=>s+m.committed,0)*100)/100,proximosMeses},itens:itensStatus};
+const doc={at:new Date().toISOString().slice(0,19)+'+00:00',fonte:'github',accounts:{contas,cartoes},tx,investimentos,outlook:{totalComprometido:Math.round(proximosMeses.reduce((s,m)=>s+m.committed,0)*100)/100,proximosMeses},itens:itensStatus};
 // saúde (Fitbit Air pela Google Health API): uma falha aqui não derruba o Open Finance
 try{ doc.saude=await buscarSaude(); }catch(e){ doc.saude={ok:false,erro:String(e&&e.message||e).slice(0,200)}; }
 const s=JSON.stringify(doc); if(s.length>240000) throw new Error('GRANDE DEMAIS');
 // criptografa: AES-256-GCM com chave aleatória, chave embrulhada com a chave pública RSA do repositório
 const k=crypto.randomBytes(32), iv=crypto.randomBytes(12); const c=crypto.createCipheriv('aes-256-gcm',k,iv); const data=Buffer.concat([c.update(s,'utf8'),c.final()]);
 const pub=fs.readFileSync('chave_publica.pem','utf8'); const kw=crypto.publicEncrypt({key:pub,padding:crypto.constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},k);
-fs.mkdirSync('out',{recursive:true}); const NOMES={'e5450539-6faa-46a5-9b60-686932e79dbc':'Inter','b71b33b3-83e7-47ec-845d-8c95cc75a0cc':'Nubank','2ced0015-4d81-4dda-9484-352c4537fe87':'PicPay','9443754b-3d7b-4a04-a595-823af681308e':'Itaú'};
+fs.mkdirSync('out',{recursive:true}); const NOMES={'e5450539-6faa-46a5-9b60-686932e79dbc':'Inter','b71b33b3-83e7-47ec-845d-8c95cc75a0cc':'Nubank','2ced0015-4d81-4dda-9484-352c4537fe87':'PicPay','9443754b-3d7b-4a04-a595-823af681308e':'Itaú','8a9f6881-799b-4653-bfb5-daa289d73fc9':'XP'};
 const st=itensStatus.map(i=>({banco:NOMES[i.itemId]||'?',status:i.status||'ERRO',atualizado:i.atualizado||null}));
 const sau={ok:!!doc.saude.ok,erro:doc.saude.erro||null,dias:doc.saude.dias?Object.keys(doc.saude.dias).length:0,treinos:(doc.saude.treinos||[]).length,falhas:(doc.saude.erros||[]).length};
 fs.writeFileSync('out/inbox.enc.json',JSON.stringify({v:1,at:doc.at,n:tx.length,st,sau,k:kw.toString('base64'),iv:iv.toString('base64'),tag:c.getAuthTag().toString('base64'),data:data.toString('base64')}));
 const ds=tx.map(t=>t.date).sort(); console.log('::notice::OK '+tx.length+' lançamentos '+ds[0]+' a '+ds.at(-1)+' '+JSON.stringify(itensStatus));
+console.log('::notice::Investimentos: '+investimentos.filter(x=>!x.erro).length+' posições, '+investimentos.filter(x=>x.erro).length+' erros');
 console.log('OK',tx.length,'lançamentos',ds[0],'a',ds.at(-1),JSON.stringify(itensStatus));
 console.log('::notice::Saúde '+JSON.stringify(sau)+((doc.saude.erros||[]).length?' '+doc.saude.erros.join(' | ').slice(0,600):''));
 }
