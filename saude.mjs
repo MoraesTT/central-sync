@@ -62,6 +62,12 @@ export async function buscarSaude({dias=40}={}){
     campos[pre]={n,campos:[...nomes]}; };
   await diarioTodos('daily-respiratory-rate','daily_respiratory_rate','dailyRespiratoryRate','resp');
   await diarioTodos('daily-oxygen-saturation','daily_oxygen_saturation','dailyOxygenSaturation','spo2');
+  if(!campos.spo2.n){ // sem resumo diário: média das amostras da noite
+    const ac={}; let nomes=new Set(), n=0;
+    for(const p of await listar('oxygen-saturation',`oxygen_saturation.sample_time.civil_time >= "${ini}T00:00:00"`)){ const x=p.oxygenSaturation||{}; const t=x.sampleTime&&x.sampleTime.physicalTime; if(!t) continue;
+      for(const [k,v] of Object.entries(x)){ const z=num(v); if(z==null) continue; nomes.add(k); const d=diaSP(new Date(new Date(t).getTime()+6*36e5)); (ac[d]||=[]).push(z); n++; break; } }
+    for(const [d,a] of Object.entries(ac)) dia(d).spo2_media=Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10;
+    campos.spo2={n,campos:[...nomes],amostras:true}; }
   await diarioTodos('daily-sleep-temperature-derivations','daily_sleep_temperature_derivations','dailySleepTemperatureDerivations','temp');
   await amostra('daily-vo2-max','daily_vo2_max','dailyVo2Max','vo2',true);
   await amostra('weight','weight','weight','peso',false);
